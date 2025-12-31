@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost Commit</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --fg: #e0e0e0;
+            --dim: #555;
+            --accent: #00ffaa;
+        }
+        body {
+            margin: 0; background: var(--bg); color: var(--fg);
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; overflow: hidden; font-family: sans-serif;
+        }
+        .main-ui {
+            width: 85%; max-width: 600px; text-align: center;
+        }
+        h1 {
+            font-size: 0.8rem; color: var(--dim); letter-spacing: 0.2rem;
+            margin-bottom: 40px; text-transform: uppercase;
+        }
+        #shot {
+            width: 100%; background: transparent; border: none;
+            border-bottom: 1px solid var(--dim); color: var(--fg);
+            font-size: 1.4rem; outline: none; text-align: center;
+            padding: 10px;
+        }
+        #shot:disabled { opacity: 0.2; }
+        #msg {
+            margin-top: 25px; font-size: 0.75rem; color: var(--dim);
+            height: 1.2em; transition: all 0.2s;
+        }
+        #help-btn {
+            position: absolute; bottom: 25px; right: 25px;
+            background: transparent; border: 1px solid var(--dim);
+            color: var(--dim); border-radius: 50%; width: 28px; height: 28px;
+            cursor: pointer; font-size: 0.7rem; z-index: 100;
+        }
+        #modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            padding: 30px; border: 1px solid var(--dim); max-width: 400px; 
+            line-height: 1.8; background: #000; font-size: 0.85rem;
+        }
+        .close-btn { margin-top: 25px; color: var(--accent); cursor: pointer; display: block; text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div class="main-ui">
+        <h1>Ghost Commit</h1>
+        <input type="text" id="shot" placeholder="とりあえず何か書いて。" autofocus spellcheck="false" autocomplete="off">
+        <div id="msg">Enterでコピーして、このページは捨てよう。</div>
+    </div>
+
+    <button id="help-btn">?</button>
+
+    <div id="modal">
+        <div class="modal-content">
+            <strong>Ghost Commit</strong><br><br>
+            ・サーバー保存なし。データを抱えるのは面倒だから。<br>
+            ・Enterで内容をURLにしてコピー。あとは自分に送るだけ。<br>
+            ・URLを開き直せば、その時のメモが復元される。<br>
+            ・履歴もログインもなし。飽きたらURLごと捨ててOK。<br>
+            <span class="close-btn">[ 了解 ]</span>
+        </div>
+    </div>
+
+<script>
+    const shot = document.getElementById('shot');
+    const msg = document.getElementById('msg');
+    const helpBtn = document.getElementById('help-btn');
+    const modal = document.getElementById('modal');
+    const closeBtn = document.querySelector('.close-btn');
+
+    let isProcessing = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            try {
+                shot.value = decodeURIComponent(escape(atob(hash)));
+                msg.innerText = "URLから復元したよ。";
+                msg.style.color = "#00ffaa";
+            } catch(e) {}
+        }
+    });
+
+    shot.addEventListener('keydown', (e) => {
+        if (e.isComposing || e.keyCode === 229) return;
+
+        if (e.key === 'Enter') {
+            const val = shot.value.trim();
+            if (isProcessing || !val) return;
+
+            isProcessing = true;
+            shot.disabled = true;
+
+            try {
+                const encoded = btoa(unescape(encodeURIComponent(val)));
+                const url = window.location.origin + window.location.pathname + '#' + encoded;
+                
+                navigator.clipboard.writeText(url).then(() => {
+                    shot.value = '';
+                    window.history.replaceState(null, '', window.location.pathname);
+                    msg.innerText = "COPIED. 忘れていいよ。";
+                    msg.style.color = "#00ffaa";
+                    
+                    setTimeout(() => {
+                        shot.disabled = false;
+                        isProcessing = false;
+                        shot.focus();
+                        msg.innerText = "Enterでコピーして、このページは捨てよう。";
+                        msg.style.color = "#555";
+                    }, 1500);
+                });
+            } catch(err) {
+                msg.innerText = "コピーに失敗した。";
+                isProcessing = false;
+                shot.disabled = false;
+            }
+        }
+    });
+
+    helpBtn.addEventListener('click', () => modal.style.display = 'flex');
+    closeBtn.addEventListener('click', () => modal.style.display = 'none');
+    window.addEventListener('click', (e) => { if (e.target == modal) modal.style.display = 'none'; });
+</script>
+</body>
+</html>
